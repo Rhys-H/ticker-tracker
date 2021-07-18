@@ -6,9 +6,11 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/alpaca"
 	"github.com/alpacahq/alpaca-trade-api-go/common"
+	v2 "github.com/alpacahq/alpaca-trade-api-go/v2"
 	"github.com/joho/godotenv"
 	"github.com/vartanbeno/go-reddit/v2/reddit"
 )
@@ -26,20 +28,17 @@ func init() {
 }
 
 func main() {
-	// Alpaca API currently not used
-	alpacaClient := alpaca.NewClient(common.Credentials())
-	acct, err := alpacaClient.GetAccount()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(*acct)
+	stock := "TSLA"
 
 	posts := dailyTopPosts("wallstreetbets")
-	mentions := checkMentions(posts, "TSLA")
-
+	mentions := checkMentions(posts, stock)
 	if mentions == nil {
 		fmt.Println("No mentions of supplied stocks")
 	}
+
+	barset := weeklyStockPrice(stock)
+	percentChange := priceMovement(barset, stock)
+	fmt.Printf("%s moved %v%% over the last 7 days.\n", stock, percentChange)
 }
 
 func dailyTopPosts(sub string) []*reddit.Post {
@@ -48,13 +47,11 @@ func dailyTopPosts(sub string) []*reddit.Post {
 		ListOptions: reddit.ListOptions{
 			Limit: 100,
 		},
-		Time: "today",
+		Time: "week",
 	})
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Printf("Received %d posts.\n", len(posts))
 
 	return posts
 }
@@ -70,4 +67,30 @@ func checkMentions(posts []*reddit.Post, stock string) []string {
 	}
 
 	return mentions
+}
+
+func weeklyStockPrice(stock string) []v2.Bar {
+	alpacaClient := alpaca.NewClient(common.Credentials())
+
+	bars := alpacaClient.GetBars(
+		stock, v2.Day, v2.Raw, time.Now().Add(-7*24*time.Hour), time.Now().Add(-20*time.Minute), 7)
+	var barset []v2.Bar
+
+	for bar := range bars {
+		if bar.Error != nil {
+			panic(bar.Error)
+		}
+		barset = append(barset, bar.Bar)
+	}
+
+	return barset
+}
+
+func priceMovement(barset []v2.Bar, stock string) float64 {
+	// See the historical price movement for a given stock
+	startPrice := barset[0].Open
+	endPrice := barset[len(barset)-1].Close
+	percentChange := ((endPrice - startPrice) / startPrice) * 100
+
+	return percentChange
 }
