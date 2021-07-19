@@ -17,3 +17,10 @@ I initially only plan on using Reddit as a source of data but will consider othe
   ```shell
   go run .
   ```
+
+## Example
+
+![TSLA_example](https://user-images.githubusercontent.com/5068032/126120842-4a3026f1-62ce-4329-8bf6-4a8f8646ae89.png)
+
+- Found two Reddit post titles containing the stock symbol that we are interested in, TSLA, for the given timeframe
+- Displays the price movement as a percentage for the same timeframe
